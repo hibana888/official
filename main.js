@@ -1,38 +1,73 @@
-document.addEventListener('DOMContentLoaded', () => {
-  initPageLoader();
-  initLiveClock();
-  initPaintPad();
-  initSurpriseMe();
-  initVinylPlayer();
-  initMuseModal();
-  initStaySharpTabs();
-  initReelPreviewModal();
-  initMultiStepFormAndBookingModal();
-  initFaqAccordion();
-  initTimeBasedTheme();
-});
-
-
 /* ==========================================================================
-   9. MULTI-STEP FORM & BOOKING MODAL (FIXED GOOGLE SHEETS PAYLOAD)
+   BARI ABDER // THE 45 METHOD — MAIN JAVASCRIPT
    ========================================================================== */
+
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHeIRIApO_vqvJbRzTs7lN11-KBKLKty5gNFjeGtA2yRYeg3zke0Z0ruCFYjsxt6USVg/exec';
 
 let bookingModalRef = null;
+let reelModalRef = null;
 let currentStep = 1;
 const totalSteps = 8;
 
+/* ==========================================================================
+   MODAL CONTROLS
+   ========================================================================== */
+
+function getBookingModal() {
+  if (!bookingModalRef) {
+    bookingModalRef = document.getElementById('bookingModal');
+  }
+  return bookingModalRef;
+}
+
+function getReelModal() {
+  if (!reelModalRef) {
+    reelModalRef = document.getElementById('reelPreviewModal');
+  }
+  return reelModalRef;
+}
+
 function openBookingModal() {
-  if (!bookingModalRef) return;
-  bookingModalRef.classList.add('open');
+  const modal = getBookingModal();
+  if (!modal) return;
+  modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeBookingModal() {
-  if (!bookingModalRef) return;
-  bookingModalRef.classList.remove('open');
+  const modal = getBookingModal();
+  if (!modal) return;
+  modal.classList.remove('open');
   document.body.style.overflow = 'auto';
 }
+
+function openReelModal(iframeSrc, externalUrl) {
+  const modal = getReelModal();
+  if (!modal) return;
+  if (iframeSrc) {
+    const iframe = document.getElementById('reelEmbedIframe');
+    if (iframe) iframe.src = iframeSrc;
+  }
+  if (externalUrl) {
+    const extLink = document.getElementById('reelExternalLink');
+    if (extLink) extLink.href = externalUrl;
+  }
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeReelModal() {
+  const modal = getReelModal();
+  if (!modal) return;
+  modal.classList.remove('open');
+  const iframe = document.getElementById('reelEmbedIframe');
+  if (iframe) iframe.src = '';
+  document.body.style.overflow = 'auto';
+}
+
+/* ==========================================================================
+   MULTI-STEP BOOKING FORM
+   ========================================================================== */
 
 function updateProgress() {
   const fill = document.getElementById('formProgress');
@@ -57,7 +92,7 @@ function nextStep() {
   if (currentStep < totalSteps) {
     setTimeout(() => {
       showStep(currentStep + 1);
-    }, 200);
+    }, 180);
   }
 }
 
@@ -76,6 +111,7 @@ function validateContactAndNext() {
 
   if (!name) {
     alert('عافاك دخل الاسم الكامل.');
+    if (nameInput) nameInput.focus();
     return;
   }
 
@@ -90,10 +126,14 @@ function validateContactAndNext() {
     if (/^\d{9}$/.test(afterCode)) isValid = true;
   } else if (cleanPhone.startsWith('0')) {
     if (/^\d{10}$/.test(cleanPhone)) isValid = true;
+  } else if (/^\+?\d{8,15}$/.test(cleanPhone)) {
+    // Fallback for international or other standard mobile numbers
+    isValid = true;
   }
 
   if (!isValid) {
-    alert('عافاك تأكد من رقم الهاتف: إذا بديتي بـ +212 خاص يكونو 9 ديال الأرقام موراها (مثال: +212 655438567) أو دخل رقم محلي (مثال: 0655438567).');
+    alert('عافاك تأكد من رقم الهاتف (مثال: 0650123456 أو +212650123456).');
+    if (phoneInput) phoneInput.focus();
     return;
   }
 
@@ -115,9 +155,17 @@ function enableSubmitButton() {
 
 function initMultiStepFormAndBookingModal() {
   bookingModalRef = document.getElementById('bookingModal');
+  reelModalRef = document.getElementById('reelPreviewModal');
+
   if (bookingModalRef) {
     bookingModalRef.addEventListener('click', (e) => {
       if (e.target === bookingModalRef) closeBookingModal();
+    });
+  }
+
+  if (reelModalRef) {
+    reelModalRef.addEventListener('click', (e) => {
+      if (e.target === reelModalRef) closeReelModal();
     });
   }
 
@@ -155,10 +203,12 @@ function initMultiStepFormAndBookingModal() {
     };
 
     try {
-      // Matches JSON.parse(e.postData.contents) in Google Apps Script doPost(e)
       await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
         body: JSON.stringify(payload)
       });
 
@@ -184,8 +234,9 @@ function initMultiStepFormAndBookingModal() {
 }
 
 /* ==========================================================================
-   10. FAQ ACCORDION
+   FAQ ACCORDION
    ========================================================================== */
+
 function initFaqAccordion() {
   document.querySelectorAll('.faq-trigger').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -207,35 +258,82 @@ function initFaqAccordion() {
 }
 
 /* ==========================================================================
-   11. TIME-BASED THEME TOGGLE (7 PM - 7 AM DARK / 7 AM - 7 PM LIGHT)
+   THEME TOGGLE (DARK / LIGHT)
    ========================================================================== */
+
+function isNightTime() {
+  const hour = new Date().getHours();
+  return hour >= 19 || hour < 7;
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try {
+    localStorage.setItem('theme-override', theme);
+    localStorage.setItem('theme-override-time', Date.now().toString());
+  } catch (e) {
+    console.warn('LocalStorage unavailable:', e);
+  }
+}
+
+let lastToggleTimestamp = 0;
+
+function toggleTheme(e) {
+  if (e && e.preventDefault) {
+    e.preventDefault();
+  }
+  const now = Date.now();
+  if (now - lastToggleTimestamp < 250) {
+    return; // Ignore rapid double-fire
+  }
+  lastToggleTimestamp = now;
+
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+}
+
 function initTimeBasedTheme() {
   const toggleBtn = document.getElementById('themeToggle');
-  if (!toggleBtn) return;
-
-  function isNightTime() {
-    const hour = new Date().getHours();
-    return hour >= 19 || hour < 7;
+  if (toggleBtn) {
+    toggleBtn.onclick = toggleTheme;
   }
 
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-  }
-
-  toggleBtn.addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('theme-override', next);
-    localStorage.setItem('theme-override-time', Date.now().toString());
-    applyTheme(next);
-  });
-
+  // Check every minute if 6h override expired to sync with daylight
   setInterval(() => {
-    const overrideTime = Number(localStorage.getItem('theme-override-time') || 0);
-    const sixHours = 6 * 60 * 60 * 1000;
-    if (!overrideTime || Date.now() - overrideTime > sixHours) {
-      localStorage.removeItem('theme-override');
-      applyTheme(isNightTime() ? 'dark' : 'light');
-    }
+    try {
+      const overrideTime = Number(localStorage.getItem('theme-override-time') || 0);
+      const sixHours = 6 * 60 * 60 * 1000;
+      if (!overrideTime || Date.now() - overrideTime > sixHours) {
+        localStorage.removeItem('theme-override');
+        const autoTheme = isNightTime() ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', autoTheme);
+      }
+    } catch (e) {}
   }, 60 * 1000);
+}
+
+/* ==========================================================================
+   PAGE INITIALIZATION
+   ========================================================================== */
+
+function initAll() {
+  initMultiStepFormAndBookingModal();
+  initTimeBasedTheme();
+  initFaqAccordion();
+
+  // If a loader exists, dismiss it cleanly
+  const loader = document.getElementById('page-loader');
+  if (loader) {
+    setTimeout(() => {
+      loader.classList.add('fade-out');
+      setTimeout(() => loader.remove(), 600);
+    }, 200);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
 }
